@@ -1,0 +1,384 @@
+README
+
+    Kilobot App - A Kilobot simulator and swarm pattern designer
+    Copyright (C) 2012 Antti Halme / ICS / Aalto University
+
+
+
+ 0. REQUIREMENTS
+ 1. OVERVIEW
+ 2. USAGE
+ 3. APP DESIGN
+ 4. PROGRAMMING MODEL
+ 5. REFERENCES
+ 6. TODO/WISHLIST
+ 7. LICENSING
+
+
+
+ 0. REQUIREMENTS
+
+
+ * Reasonably new Python, developed on Python 2.7.3
+ * The pygame library, developed on pygame 1.9.1 (see [4])
+ * the pygame utility library for GUI (included as local library)
+
+ Developed on Ubuntu Linux, following should set you up fine
+   $>   sudo apt-get install python python-pygame
+ 
+ * The latest and greatest version of this can be found from Github
+
+   Github repository:
+   
+
+
+
+ 1. OVERVIEW
+
+Kilobot App features a Kilobot simulator (KBSimulation) and a simple collective 
+pattern designer (KBDesigner).
+
+KBSimulation is a simple simulation environment, so far mainly used in
+prototyping control software ideas and collective algorithms on a swarm of
+Kilobots [1, 2, 3]. Kilobots are constrained yet capable little robots, with a
+somewhat low unit retail cost (à ~100€).
+
+KBDesigner is an alpha stage tool for designing collective patterns for Kilobot
+swarms. The designer produces a pattern specification, used by a Kilobot swarm as
+a set of instructions for rendering somewhat arbitrary visual patterns. At this
+time, the "bot rendering" feature is very limited, as the necessary control
+algorithms for arbitrary form generation are very limited.
+
+The application is written in Python using the SDL-derived Pygame library [4] and
+features dynamic robot instruction loading, a primitive user interface and of
+course a feature level model of Kilobots and their interaction. The simulator is
+modular to a degree and could be made to support other bots relatively easily.
+
+Kilobots feature a multicolor LEDs, neighbor-to-neighbor distance sensing (NOTE:
+no bearing!), a rechargeable battery, two vibration motors that enable slapstick
+movement either clockwise, counterclockwise or approximately forward. Kilobots
+communicate in a very primitive way: they can send and receive IR pulses, relying
+on a reflective surface to enable message broadcasts of 23 bits at a range of up
+to 10cm.
+
+
+ 2. USAGE
+
+
+The Kilobot application runs modules (KBSimulator, KBDesigner) and overlays a
+simple GUI (KBDialog, KBControl, KBGUI) on top of the executing module. A
+configuration data structure is passed around in the application and is based on
+the configuration file (e.g. default.cfg) and possible command line parameters
+that override the file.
+
+The application configuration allows the manipulation of relevant variables
+ranging from color schemes to radio ranges and bot behavior. The key parameters:
+ * the number of bots to populate the world with 
+   (2-100 or even more, if HW willing) 
+ * the behavior/program to load in the bots 
+   (currently only one is supported, could easily support multiple different) 
+ * the initial formation in which the bots lie 
+ * possibly a seed value for the random function (identical simulator runs)
+
+A helper script './launch' assists in executing the application, supporting a
+range of optional parameters. The powerful parser libraries (argparse,
+ConfigParser), munch the configurations and support a variety of calling schemes
+that guide the launch process, e.g.:
+
+  $> ./launch -h
+  $> ./launch --help
+
+  $> ./launch -n 10 -p Bots/Listenbot.py -f RANDOM
+  $> ./launch -c experimental.cfg -p Bots/Coolbot.py  -f RANDOM
+  $> ./launch -c experimental.cfg -p Bots/Coolbot.py -s 42
+  $> ./launch -p Bots/Franklinbot.py -f CIRCLE -n 8
+  $> ./launch --dialog
+  $> ./launch --designer -n 9
+
+The simulator (and the designer, too, when applicable) support on-the-fly
+interaction by the following keys:
+
+  a - abstract mode toggle 
+      (faultless RX/TX, connection graph, pseudo-reduction to points)
+  c - draw links
+  d - draw debug information
+  g - draw grid
+  h - show formation information (disconnected)
+  i - draw bot info (e.g. secretID)
+k,l - FPS up/down (use slider instead)
+n,m - interference noise multiplier up/down 
+       (the UI panel shows the percentage of OK msgs of all send attempts)
+  p - print (disconnected)
+  r - draw radio range
+  s - simulation stop/pause
+  t - draw traffic (RX and TX for each node)
+  u - draw user interface panel (fps, round number, etc)
+,,. - ambient noise up/down
+PGDN/PGUP - 90 degree world rotation CW/CCW
+ ESC - end simulation
+
+Mouse is also of use:
+ mouse L - make a connection between bots (designer mode, disconnected)
+ mouse R - move bot around
+
+The simulator also has overlay UI items:
+ * toggle for fullscreen
+ * designer-button to launch the designer 
+ * restart to re-launch the current execution (with the previous config)
+ * FPS slider to set the target speed of the simulation
+ * printouts: round, fps, noise info
+ 
+The designer also has overlay UI items:
+ * toggle for fullscreen
+ * clear connections between bots
+ * connect the bots in the design by magic
+ * launch a connected design to be rendered in a simulation
+
+Again, the designer (and the rest, too) is very much under construction.
+
+
+ 3. APP DESIGN
+
+
+The Kilobot App features a simulator and designer tool. To accommodate both at
+the same time, a module system was implemented for the application base: both 
+KBSimulation and KBDesigner are launched as needed. The modules share a
+configuration state, mostly derived from a configuration file, but overridden by
+command line arguments to the launcher script. The configuration object is also
+used to carry the designer output to the rendering simulation.
+
+The KBSimulator is essentially an update-draw loop with bot-specific function
+pointers so that at every time step, all bots run one atomic function. This
+suggest a state machine based programming model, described in the next section.
+
+The KBDesigner is a barebones GUI in the spirit of the simulation environment. It
+features a simple connection algorithm, useful for building a connected graph out
+of the robots. Connectedness is one of the (implicit) requirements for launching
+a rendering simulation. As the rendering algorithm is very simple, for any
+pattern formation to succeed, careful manual tuning of the formation rules is
+almost certainly needed.
+
+
+In the folder Bots/, we have the programs themselves, modules written in Python
+containing the program to be run on each bot. For now, and in the spirit of swarm
+computing, all bots run the same program. The bots have a backward link to the
+simulator, allowing for more complicated things, such as overriding the debug
+print function or using the uniquely identifying secretID-parameter to set nodes
+to run different version of a program (e.g. leader and followers).
+
+In the folder libs/, we have the vector type libary Vec2d [5] and the (possibly
+discontinued) pygame utilities library [6], used for th GUI.
+
+The *.cfg-files, notably default.cfg, are the main configuration mechanism,
+outside command line parameters. They should be relatively self-explanatory or
+at least easy to play with. The whole configuration scheme relies on the
+excellent Python Standard Library utilities ConfigParser [7] and argparse [8].
+
+./launch is the main script of the application, used to launch the Kilobot
+App. The main function is very simple: 
+  1. parse config file and overwrite config values for those given as arguments
+  2. build a new KBApp instance with that configuration
+  3. run
+
+KBApp.py holds the highest level of abstraction, launching modules as specified
+by the configuration object (a map) until shut down by the user. 
+
+KBControl.py holds the GUI elements to be overlaid on their respective modules.
+They derive from pgu-elements, the design of which is heavily influenced by the
+HTML object model and layout concepts. Both include callback functions that
+interact with the module by using form-based message passing.
+
+KBDesigner.py holds the massive work-in-progress designer module. The main loop
+is in the run() function, maintaining the GUI and updating the design. The basic
+functionality is built out of the following:
+ * the analyzer  - all nodes are properly linked to their predecessors
+ * the connector - kNN backwards assignment
+ * the executor - launches the simulation based on the (connected) design
+
+KBDialog.py is a sketchy GUI piece, a graphical layer for the command line
+parameters for both the simulation and the designer.
+
+KBGUI.py does the heavy lifting for user interaction. It maintains the draw
+surface (e.g. keeps the nodes in sight), handles UI events by calling appropriate
+processing functions and defines and manages the visual appearance of all
+graphical elements both in simulation and the designer tool.
+
+KBSimulation.py defines the simulator functionality, including formation control,
+bot instantiation, collision detection, messaging control, the stepwise robot
+execution and other things. Like the designer, it has a main loop in the
+run()-function, where everything is updated and drawn and processed.
+
+Kilobot.py defines the robot functionality and contains a library of common
+simulation idioms. The idioms are short functions, to be included in the function
+list that represents the program, the algorithm. These include functions that
+simulate the Kilobot C API (e.g. message_out) as well as useful little things
+(e.g. reset_rx) and entire features (e.g. the history routines). Some of the
+functions are considered internal, some to be used as parts of algorithms to be
+implemented.
+
+LICENSE holds the GPLv3 and README is what you're reading.
+
+
+   LICENSE  README	    	           lib/   Bots/
+
+                           .---------.     .---------.
+	 ./launch   ---->  |  KBApp  |  <  | Kilobot |
+                           '---------'     '---------'
+                           //       \\
+              .----------------. .--------------.
+              |  KBSimulation  | |  KBDesigner  |
+              '----------------' '--------------'
+                          \           /
+                           .---------.
+                           |  KBGui  |
+                           '---------'
+                           /         \
+                .-------------.    .------------.
+                |  KBControl  |    |  KBDialog  |
+                '-------------'    '------------'
+
+
+ 4. PROGRAMMING MODEL
+
+
+Bots are created by writing a new Python module in which there is a class that
+inherits the Kilobot class and replaces its self.program field with a function
+pointer array. Additionally, for import semantics to stay reasonable, a load()
+function is to be implemented in the new module, called at simulation startup.
+
+Single functions in the robots can be as elaborate as needed and can use all
+tricks possible in Python. To keep in mind is the fact that from the simulator's
+perspective, the whole function is atomic and is run in a single step. This means
+that, e.g., delay or real durations in execution are irrelevant, affecting only
+changes in the apparent FPS of the simulator. In short, this suggests a finite 
+state machine -based program design.
+
+A program counter, self.PC, tracks the program execution, operating as a pointer
+to the function pointer list. The counter enables (clunky) looping and programmed
+control flow modifications, even self-modifying code. With that, the whole model
+can be thought of as high-level programming with low-level ideas.
+
+The parent class Kilobot.py features a set of basic functions that can be called
+directly as a single time step, e.g.,
+
+  self.program =  [..., 
+                   self.toggle_tx,  # note: self.toggle_tx , NOT self.toggle_tx()
+	           ...], 
+
+or included in a function and called through that:
+    self.program =  [..., 
+    		     self.myfunc,
+		     ...]
+		     
+    def myfunc(self):
+    	self.toggle_tx()
+
+The Kilobot default library contains a bunch of value fields, some simulator
+specific tricks, a simulated C API in the spirit of the real C API (to make the
+eventual porting to C possibly easier) and more advanced constructs, such as the
+message history API.
+   		
+Simple examples to get a grasp of the programming model include
+
+ * Bots/Defaultbot.py, here in it's entirety:
+
+			from Kilobot import *
+
+			def load(sim):
+			    return Defaultbot(sim)
+
+			class Defaultbot(Kilobot): 
+			     def __init__(self, sim):
+			         Kilobot.__init__(self, sim)
+			         self.program = [self.loop0]
+
+ * Bots/Blinkybot.py
+ * Bots/Radiobot.py
+
+Some of the more complex examples include:
+
+ * Bots/Franklinbot.py
+ * Bots/Wavebot.py
+ * Bots/Abot.py
+
+
+ 5. REFERENCES
+
+
+[1] K-Team. Introduction to Kilobot. 
+    http://www.k-team.com/mobile-robotics-products/kilobot/introduction
+
+[2] Kilobot: A Low Cost Scalable Robot System for Collective Behaviors
+    Michael Rubenstein, Nicholas Hoff, Radhika Nagpal, 
+    Technical Report TR-06-11, Harvard University
+    ftp://ftp.deas.harvard.edu/techreports/tr-06-11.pdf
+
+[3] Kilobot project homepage.
+    http://www.eecs.harvard.edu/ssr/projects/progSA/kilobot.html
+
+[4] About Pygame.
+    http://www.pygame.org/wiki/about
+
+[5] http://www.pygame.org/wiki/2DVectorClass
+    http://karpathy.ca/phyces/tutorial1.php - Phyces
+
+[6] http://www.pygame.org/project/108/
+    http://code.google.com/p/pgu/ - Phil Hassey
+
+[7] http://docs.python.org/library/configparser.html
+
+[8] http://docs.python.org/library/argparse.html
+
+
+ 6. TODO/WISHLIST
+
+
+ - better module abstraction and general design, aim for MVC
+    * have KBSimulation and KBDesigner derive from a KBModule
+ - cleanup the UI, remove redundancies from keys
+ - maintain fullscreen when switching modules
+ - comments, documentation
+    * app design
+ - smarter designer
+    * "connect" does not reset, builds on existing linkage
+    * a "check" or "analyze" feature
+    * smoother "connect" algorithm, simplify implementation
+    * derive KBDesignerGUI from KBGUI (also KBSimulationGUI)
+ - rethink radio stuff, particularly noise
+ - use (pygame)-events more in the simulator
+ - draw smarter, more speed from better-than-trivial algorithms
+ - non-Renderbot rendering of given form somewhere
+ - target form shadow in render simulation
+ - signnificantly better Renderbot(/Abot/LineBOT/...) control scheme
+ - more algorithm prototypes
+ - fix non-termination heisenbug from Wavebot
+ - add error to differential drive, add imprecision in motion
+ - pay attention to specification compliance
+
+ - the better-than-expected transmission range hasn't been considered
+   in either the algorithms or the simulator
+ 
+ - complete redesign/rewrite with proper parallel/concurrent execution
+   * e.g., see goroutines and channels in Google's golang
+
+
+
+
+ 7. LICENSING
+
+
+    Kilobot App - A Kilobot simulator and swarm pattern designer
+    Copyright (C) 2012 Antti Halme / ICS / Aalto University
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.

@@ -1,0 +1,59 @@
+#! /usr/bin/python -B
+
+import sys, os.path
+import argparse, ConfigParser, ast
+
+from KBApp import *
+
+def getConfig():
+    cfg = None
+    args = None
+
+    # parse arguments
+    parser = argparse.ArgumentParser(description="Kilobot simulator.")
+    parser.add_argument("-c", metavar="file", type=str, help="configuration file")
+    parser.add_argument("-n", metavar="N", type=int, help="number of bots")
+    parser.add_argument("-p", metavar="file", type=str, help="program file to run on bots")
+    parser.add_argument("-f", type=str, choices=['PILED',"RANDOM","CIRCLE","LINE"], 
+                        help="the initial formation")
+    parser.add_argument("-s", type=int, help="random seed")
+    parser.add_argument("--designer", help="designer mode", action="store_true")
+    parser.add_argument("--dialog", help="launch dialog", action="store_true")
+    args = parser.parse_args()
+
+    # get baseline configuration from file
+    if args.c:
+        cfg = parseConfig(args.c)
+    else:        
+        cfg = parseConfig("./default.cfg")
+
+    # update the conf based on the arguments
+    if args.n: cfg['n'] = args.n
+    if args.p: cfg['program'] = args.p
+    if args.f: cfg['formation'] = args.f
+    if args.s: cfg['randomseed'] = args.s
+    cfg['designer'] = args.designer
+    cfg['dialog'] = args.dialog
+
+    return cfg 
+
+
+def parseConfig(configfile): # return a dictionary of values of the config file
+    parser = ConfigParser.SafeConfigParser()
+    parser.read(configfile)
+
+    config = {}    
+    for s in parser.sections():
+        for k,v in parser.items(s):
+            config[k] = ast.literal_eval(v)
+    return config    
+
+
+def main():
+
+    config = getConfig()
+
+    app = KBApp(config)
+    app.run()
+
+main()
