@@ -27,9 +27,9 @@ README
    $>   sudo apt-get install python python-pygame
  
  * The latest and greatest version of this can be found from Github
+      
+   $>   git clone https://github.com/ajhalme/kbsim.git
 
-   Github repository:
-   
 
 
 
@@ -332,7 +332,6 @@ Some of the more complex examples include:
 
  6. TODO/WISHLIST
 
-
  - better module abstraction and general design, aim for MVC
     * have KBSimulation and KBDesigner derive from a KBModule
  - cleanup the UI, remove redundancies from keys
@@ -359,7 +358,6 @@ Some of the more complex examples include:
    in either the algorithms or the simulator
  
  - complete redesign/rewrite with proper parallel/concurrent execution
-   * e.g., see goroutines and channels in Google's golang
 
 
 

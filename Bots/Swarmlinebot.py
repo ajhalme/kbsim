@@ -1,8 +1,27 @@
-import Config as c
+
+"""
+Swarmlinebot (Deprecated)
+
+Swarmlinebot was an experiment in constructing a line by 'swarming', having the
+bots compete for the privilege of being the next in line. 
+
+Stored for posterity.
+
+NOTE: Deprecated. Superseded by LineBOT.
+
+"""
+
 from Kilobot import *
 
 def load(sim):
-    return Swarmlinebot(sim)
+#    return Swarmlinebot(sim)
+    return Defaultbot(sim)
+
+class Defaultbot(Kilobot): 
+    def __init__(self, sim):
+        Kilobot.__init__(self, sim)
+        self.program = [self.loop0]
+
 
 SYN = 2 # dodge lsb
 SYNACK = 4
@@ -14,6 +33,9 @@ SWARM = 10
 LO = 45
 GOLD = 55
 HI = 55
+
+FAR = GOLD
+NEAR = LO
 
 class Swarmlinebot(Kilobot): 
     def __init__(self, sim):
@@ -27,7 +49,7 @@ class Swarmlinebot(Kilobot):
         self.tcount = 0
         self.tvalid = False
 
-        self.spinmin = c.FAR
+        self.spinmin = FAR
         self.scount = 0
         
         self.msg = [0,0,0,0]
@@ -126,7 +148,7 @@ class Swarmlinebot(Kilobot):
         self.timeout += 1
         if (self.timeout > 10):
             self.timeout = 0
-            self.msg = [0, 0, 0, c.FAR]
+            self.msg = [0, 0, 0, FAR]
             return self.goto(self.stride)
         self.PC -= 1       
         
@@ -146,7 +168,7 @@ class Swarmlinebot(Kilobot):
                 self.fullCCW()
         elif (self.scount < 90): self.fullFWRD()
         else:
-            self.spinmin = c.FAR
+            self.spinmin = FAR
             self.scount = 0
             self.goto(self.get)
         self.PC -= 1       
@@ -198,9 +220,9 @@ class Swarmlinebot(Kilobot):
         interference = (peek[0] != heard and peek[2] == LINE and abs(peek[3] - dist) >= 3) 
         if (dist <= LO or interference):
             self.op = self.fullCW
-        elif (HI <= dist < c.FAR):
+        elif (HI <= dist < FAR):
             self.op = self.fullCCW
-        elif (dist == c.FAR):
+        elif (dist == FAR):
             self.op = self.fullCCW if self.rand() > 16 else self.fullCW
         else:            
             self.op = self.fullFWRD
@@ -217,7 +239,7 @@ class Swarmlinebot(Kilobot):
         if (self.msgrx[5] == 1):
 #            self._history_add(self.msgrx[0:4])
             if (self.msgrx[0] == self.spos - 1):
-                if (self.msgrx[3] >= c.NEAR):
+                if (self.msgrx[3] >= NEAR):
                     self.op = self.fullCCW
                     """ # TODO more smarts in tagging along
                     diff = self._history_peek()[3] - self.msgrx[3]
